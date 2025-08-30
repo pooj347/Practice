@@ -1,0 +1,175 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <string.h>
+
+#define MAX 100
+
+// Stack for characters (used in infix to postfix)
+typedef struct {
+    char items[MAX];
+    int top;
+} CharStack;
+
+void initCharStack(CharStack *s) {
+    s->top = -1;
+}
+
+int isCharStackEmpty(CharStack *s) {
+    return s->top == -1;
+}
+
+void pushChar(CharStack *s, char c) {
+    if (s->top < MAX - 1) {
+        s->items[++(s->top)] = c;
+    }
+}
+
+char popChar(CharStack *s) {
+    if (!isCharStackEmpty(s)) {
+        return s->items[(s->top)--];
+    }
+    return '\0'; // error
+}
+
+char peekChar(CharStack *s) {
+    if (!isCharStackEmpty(s)) {
+        return s->items[s->top];
+    }
+    return '\0';
+}
+
+// Stack for integers (used in postfix evaluation)
+typedef struct {
+    int items[MAX];
+    int top;
+} IntStack;
+
+void initIntStack(IntStack *s) {
+    s->top = -1;
+}
+
+int isIntStackEmpty(IntStack *s) {
+    return s->top == -1;
+}
+
+void pushInt(IntStack *s, int val) {
+    if (s->top < MAX - 1) {
+        s->items[++(s->top)] = val;
+    }
+}
+
+int popInt(IntStack *s) {
+    if (!isIntStackEmpty(s)) {
+        return s->items[(s->top)--];
+    }
+    return 0; // error
+}
+
+// Function to return precedence of operators
+int precedence(char op) {
+    switch(op) {
+        case '+':
+        case '-':
+            return 1;
+        case '*':
+        case '/':
+            return 2;
+        case '^':
+            return 3;
+    }
+    return 0;
+}
+
+// Check if character is operator
+int isOperator(char c) {
+    return c=='+' || c=='-' || c=='*' || c=='/' || c=='^';
+}
+
+// Convert infix to postfix
+void infixToPostfix(char* infix, char* postfix) {
+    CharStack stack;
+    initCharStack(&stack);
+    int i = 0, k = 0;
+    char c;
+
+    while ((c = infix[i++]) != '\0') {
+        if (isspace(c)) {
+            continue; // skip spaces
+        }
+        if (isdigit(c)) {
+            postfix[k++] = c; // append operand to postfix
+        }
+        else if (c == '(') {
+            pushChar(&stack, c);
+        }
+        else if (c == ')') {
+            while (!isCharStackEmpty(&stack) && peekChar(&stack) != '(') {
+                postfix[k++] = popChar(&stack);
+            }
+            popChar(&stack); // pop '('
+        }
+        else if (isOperator(c)) {
+            while (!isCharStackEmpty(&stack) && 
+                   precedence(peekChar(&stack)) >= precedence(c)) {
+                postfix[k++] = popChar(&stack);
+            }
+            pushChar(&stack, c);
+        }
+    }
+    while (!isCharStackEmpty(&stack)) {
+        postfix[k++] = popChar(&stack);
+    }
+    postfix[k] = '\0'; // null terminate
+}
+
+// Evaluate postfix expression
+int evaluatePostfix(char* postfix) {
+    IntStack stack;
+    initIntStack(&stack);
+    int i = 0;
+    char c;
+    int a, b, result;
+
+    while ((c = postfix[i++]) != '\0') {
+        if (isdigit(c)) {
+            pushInt(&stack, c - '0');  // convert char digit to int
+        }
+        else if (isOperator(c)) {
+            b = popInt(&stack);
+            a = popInt(&stack);
+            switch(c) {
+                case '+': result = a + b; break;
+                case '-': result = a - b; break;
+                case '*': result = a * b; break;
+                case '/': result = a / b; break;
+                case '^': {
+                    result = 1;
+                    for (int j = 0; j < b; j++) result *= a;
+                    break;
+                }
+            }
+            pushInt(&stack, result);
+        }
+    }
+    return popInt(&stack);
+}
+
+int main() {
+    char infix[MAX], postfix[MAX];
+
+    printf("Enter infix expression (single digit operands only): ");
+    fgets(infix, sizeof(infix), stdin);
+    // remove newline if any
+    infix[strcspn(infix, "\n")] = '\0';
+
+    infixToPostfix(infix, postfix);
+
+    printf("Postfix expression: %s\n", postfix);
+
+    int result = evaluatePostfix(postfix);
+
+    printf("Evaluated result: %d\n", result);
+
+    return 0;
+}
